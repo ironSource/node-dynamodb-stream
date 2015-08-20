@@ -1,6 +1,6 @@
 # DynamoDBStream
 
-A wrapper around low level aws sdk that assist in consuming a dynamodb-stream.
+A wrapper around low level aws sdk that makes it easy to consume a dynamodb-stream.
 
 ### Example: Replicating small tables
 
