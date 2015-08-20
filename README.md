@@ -83,6 +83,7 @@ ddbStream.fetchStreamState(function (err) {
 #### TODO
  - make sure the aggregation of records is in order - rhe metadata from the stream might be helpful (order by sequence number?)
  - maybe only update the stream state after the callback of fetchStreamState():
+ 
  ```javascript
  // internally dont replace iterators before process is complete without errors
  ddbStream.fetchStreamState(function (err, callback) {
