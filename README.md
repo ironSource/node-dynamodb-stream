@@ -65,6 +65,18 @@ The fetchStreamState() can accept a callback function, that will be invoked prio
 var schedule = require('tempus-fugit').schedule
 var aws = require('aws')
 var DynamoDBStream = require('dynamodb-stream')
+var ddb = new aws.DynamoDB()
+var ddbStream = new DynamoDBStream(new aws.DynamoDBStreams(), 'my stream arn')
+
+ddbStream.fetchStreamState(function (err) {
+    if (!err) {
+        return console.error(err)
+    }
+
+    var state = ddbStream.getShardState()
+
+    // save state here
+})
 
 ```
 
