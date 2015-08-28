@@ -17,7 +17,8 @@
     "async": "^1.4.2",
     "debug": "^2.2.0",
     "dynamodb-value": "^1.0.0",
-    "lodash": "^3.10.1"
+    "lodash": "^3.10.1",
+    "set-immediate": "^0.1.1"
   },
   "author": "Yaniv Kessler",
   "bugs": {

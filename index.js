@@ -1,3 +1,4 @@
+require('set-immediate')
 var debug = require('debug')('DynamoDBStream')
 var _ = require('lodash')
 var async = require('async')
