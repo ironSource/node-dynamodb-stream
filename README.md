@@ -21,7 +21,7 @@ Wrapping the initial data scan with fetchStreamState() calls insures that no cha
 
 ```javascript
 
-var aws = require('aws')
+var aws = require('aws-sdk')
 var DynamoDBStream = require('dynamodb-stream')
 var schedule = require('tempus-fugit').schedule
 var deepDiff = require('deep-diff').diff
@@ -59,17 +59,17 @@ ddbStream.on('remove shards', function (shardIds) {})
 
 ### Example: shards / iterator persistence on dynamodb
 
-The fetchStreamState() can accept a callback function, that will be invoked priore to event emission. Among other things, this callback is designed to be used as a hook point for persisting the iterator's state
+The fetchStreamState() can accept a callback function, that will be invoked prior to event emission. Among other things, this callback is designed to be used as a hook point for persisting the iterator's state
 
 ```javascript
 var schedule = require('tempus-fugit').schedule
-var aws = require('aws')
+var aws = require('aws-sdk')
 var DynamoDBStream = require('dynamodb-stream')
 var ddb = new aws.DynamoDB()
 var ddbStream = new DynamoDBStream(new aws.DynamoDBStreams(), 'my stream arn')
 
 ddbStream.fetchStreamState(function (err) {
-    if (!err) {
+    if (err) {
         return console.error(err)
     }
 
@@ -81,7 +81,7 @@ ddbStream.fetchStreamState(function (err) {
 ```
 
 #### TODO
- - make sure the aggregation of records is in order - rhe metadata from the stream might be helpful (order by sequence number?)
+ - make sure the aggregation of records is in order - the metadata from the stream might be helpful (order by sequence number?)
  - maybe only update the stream state after the callback of fetchStreamState():
  
  ```javascript
