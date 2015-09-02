@@ -32,9 +32,22 @@ var ddbStream = new DynamoDBStream(new aws.DynamoDBStreams(), 'my stream arn')
 
 var localState = {}
 
-// do this every 1 minute, starting from the next round minute
-schedule({ minute: 1 }, function (job) {
-    ddbStream.fetchStreamState(job.callback())
+// fetch stream state initially
+ddbStream.fetchStreamState(function (err) {
+    if (err) {
+        console.error(err)
+        return process.exit(1)
+    }
+    
+    // fetch all the data
+    ddb.scan({ TableName: 'foo' }, function (err, results) {
+        localState = // parse result and store in localSate
+        
+        // do this every 1 minute, starting from the next round minute
+        schedule({ minute: 1 }, function (job) {
+            ddbStream.fetchStreamState(job.callback())
+        })
+    })    
 })
 
 ddbStream.on('insert record', function (data) {
