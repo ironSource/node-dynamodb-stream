@@ -189,12 +189,16 @@ DynamoDBStream.prototype._getShardRecords = function (records, shardData, callba
 	var self = this
 
 	this._ddbStreams.getRecords({ ShardIterator: shardData.nextShardIterator }, function (err, result) {
-		records.push.apply(records, result.Records)
+		if (err) return callback(err)
+			
+		if (result.Records) {
+			records.push.apply(records, result.Records)
 
-		if (result.NextShardIterator) {
-			shardData.nextShardIterator = result.NextShardIterator
-		} else {
-			shardData.nextShardIterator = null
+			if (result.NextShardIterator) {
+				shardData.nextShardIterator = result.NextShardIterator
+			} else {
+				shardData.nextShardIterator = null
+			}
 		}
 
 		callback()
