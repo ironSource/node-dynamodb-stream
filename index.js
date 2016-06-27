@@ -192,7 +192,6 @@ DynamoDBStream.prototype._getShardRecords = function (records, shardData, callba
 		if (err) {
 			if (err.code === 'ExpiredIteratorException') {
 				shardData.nextShardIterator = undefined;
-				return callback();
 			}
 			return callback(err);
 		}
