@@ -189,8 +189,13 @@ DynamoDBStream.prototype._getShardRecords = function (records, shardData, callba
 	var self = this
 
 	this._ddbStreams.getRecords({ ShardIterator: shardData.nextShardIterator }, function (err, result) {
-		if (err) return callback(err)
-			
+		if (err) {
+			if (err.code === 'ExpiredIteratorException') {
+				shardData.nextShardIterator = undefined;
+			}
+			return callback(err);
+		}
+
 		if (result.Records) {
 			records.push.apply(records, result.Records)
 
@@ -231,7 +236,6 @@ DynamoDBStream.prototype._emitRecordEvents = function (events) {
 
 	for (var i = 0; i < events.length; i++) {
 		var event = events[i]
-
 		var newRecord = event.dynamodb.NewImage ? DynamoDBValue.toJavascript(event.dynamodb.NewImage) : null
 		var oldRecord = event.dynamodb.OldImage ? DynamoDBValue.toJavascript(event.dynamodb.OldImage) : null
 
