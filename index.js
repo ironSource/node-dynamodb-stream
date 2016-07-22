@@ -85,7 +85,7 @@ DynamoDBStream.prototype.fetchStreamRecords = function (callback) {
 		setImmediate(_.bind(self._emitRecordEvents, self, records))
 
 		if (callback) {
-			callback()
+			callback(null, records);
 		}
 	})
 }
