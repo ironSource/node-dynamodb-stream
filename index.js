@@ -90,7 +90,7 @@ DynamoDBStream.prototype.fetchStreamRecords = function (callback) {
 	})
 }
 
-/** 
+/**
  * update the shard state of the stream
  * this will emit new shards / remove shards events
  */
@@ -113,9 +113,9 @@ DynamoDBStream.prototype.fetchStreamShards = function(callback) {
 		if (err) {
 			return callback ? callback(err) : self._emitErrorEvent(err)
 		}
-		
+
 		debug('describeStream data')
-		
+
 		var shards = data.StreamDescription.Shards
 		var newShardIds = []
 
@@ -146,7 +146,7 @@ DynamoDBStream.prototype.fetchStreamShards = function(callback) {
 
 DynamoDBStream.prototype._getShardIterators = function (callback) {
 	debug('_getShardIterators')
-	
+
 	async.eachLimit(this._shards, 10, _.bind(this._getShardIterator, this), callback)
 }
 
@@ -159,7 +159,7 @@ DynamoDBStream.prototype._getShardIterator = function(shardData, callback) {
 		debug('shard %s already has an iterator, skipping', shardData.shardId)
 		return callback()
 	}
-	
+
 	var params = {
 		ShardId: shardData.shardId,
 		ShardIteratorType: 'LATEST',
@@ -175,7 +175,7 @@ DynamoDBStream.prototype._getShardIterator = function(shardData, callback) {
 
 DynamoDBStream.prototype._getRecords = function (callback) {
 	debug('_getRecords')
-	
+
 	var records = []
 
 	async.eachLimit(this._shards, 10, _.bind(this._getShardRecords, this, records), function (err) {
@@ -207,9 +207,9 @@ DynamoDBStream.prototype._getShardRecords = function (records, shardData, callba
 
 DynamoDBStream.prototype._trimShards = function () {
 	debug('_trimShards')
-	
+
 	var removedShards = []
-	
+
 	for (var shardId in this._shards) {
 		var shardData = this._shards[shardId]
 
@@ -228,23 +228,26 @@ DynamoDBStream.prototype._trimShards = function () {
 
 DynamoDBStream.prototype._emitRecordEvents = function (events) {
 	debug('_emitRecordEvents')
-	
+
 	for (var i = 0; i < events.length; i++) {
 		var event = events[i]
-	
+
+		var newRecord = event.dynamodb.NewImage ? DynamoDBValue.toJavascript(event.dynamodb.NewImage) : null
+		var oldRecord = event.dynamodb.OldImage ? DynamoDBValue.toJavascript(event.dynamodb.OldImage) : null
+
 		switch (event.eventName) {
 			case 'INSERT':
-				this.emit('insert record', DynamoDBValue.toJavascript(event.dynamodb.NewImage))
+				this.emit('insert record', newRecord)
 				break
 
 			case 'MODIFY':
-				var newRecord = DynamoDBValue.toJavascript(event.dynamodb.NewImage)
-				var oldRecord = DynamoDBValue.toJavascript(event.dynamodb.OldImage)
+				var newRecord = newRecord
+				var oldRecord = oldRecord
 				this.emit('modify record', newRecord, oldRecord)
 				break
 
 			case 'REMOVE':
-				this.emit('remove record', DynamoDBValue.toJavascript(event.dynamodb.OldImage))
+				this.emit('remove record', oldRecord)
 				break
 
 			default:
