@@ -22,13 +22,13 @@
   },
   "author": "Yaniv Kessler",
   "bugs": {
-    "url": "https://github.com/ironSource/node-dynamodb-stream/issues"
+    "url": "https://github.com/kessler/node-dynamodb-stream/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ironSource/node-dynamodb-stream"
+    "url": "https://github.com/kessler/node-dynamodb-stream"
   },
-  "homepage": "https://github.com/ironSource/node-dynamodb-stream",
+  "homepage": "https://github.com/kessler/node-dynamodb-stream",
   "license": "MIT",
   "devDependencies": {
     "aws-sdk": "^2.1.45",
