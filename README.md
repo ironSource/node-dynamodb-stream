@@ -109,4 +109,4 @@ ddbStream.fetchStreamState(function (err) {
 1. expose push interface so one won't need to poll the stream api
 2. obtain a sequence number from a dynamodb api scan operation
 
-[MIT](http://opensource.org/licenses/MIT) © yaniv kessler
+[MIT](http://opensource.org/licenses/MIT) © ironSource ltd.
