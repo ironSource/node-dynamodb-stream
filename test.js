@@ -1,136 +1,81 @@
-var expect = require('chai').expect
-var DynamoDBStream = require('./index.js')
-var inspect = require('util').inspect
-var aws = require('aws-sdk')
-var async = require('async')
-var _ = require('lodash')
-var debug = require('debug')('DynamoDBStream:test')
+const test = require('ava')
+const DynamoDBStream = require('./index')
+const aws = require('aws-sdk')
+const debug = require('debug')('DynamoDBStream:test')
 
-var ddbStreams = new aws.DynamoDBStreams()
-var ddb = new aws.DynamoDB()
+const ddbStreams = new aws.DynamoDBStreams()
+const ddb = new aws.DynamoDB()
 
-var TABLE_NAME = 'testDynamoDBStream'
+const TABLE_NAME = 'testDynamoDBStream'
 
-describe('DynamoDBStream', function() {
-	this.timeout(200000)
+test('reports the correct stream of changes', async t => {
+	const { eventLog, ddbStream } = t.context
+	const pk = Date.now().toString()
 
-	var ds, results, shards
+	await ddbStream.fetchStreamState()
+	await putItem({ pk, data: '1' })
+	await ddbStream.fetchStreamState()
+	await putItem({ pk, data: '2' })
+	await ddbStream.fetchStreamState()
+	await putItem({ pk: 'a', data: '2' })
+	await putItem({ pk: 'b', data: '2' })
+	await ddbStream.fetchStreamState()
+	await deleteItem('a')
+	await ddbStream.fetchStreamState()
 
-	it('reports the correct stream of changes', function(done) {
-		var pk = Date.now().toString()
-
-		async.series([
-			_.bind(ds.fetchStreamState, ds),
-
-			// put an item initiall then check the stream for an insert event
-			_.partial(putItem, { pk: pk, data: '1' }),
-			_.bind(ds.fetchStreamState, ds),
-
-			// put another item, we expect the result not to include the initial insert
-			// and also be a modify event rather than insert			
-			_.partial(putItem, { pk: pk, data: '2' }),
-			_.bind(ds.fetchStreamState, ds),
-
-			// put two more items now, this should yield a stream with two update records
-			_.partial(putItem, { pk: 'a', data: '2' }),
-			_.partial(putItem, { pk: 'b', data: '2' }),
-			_.bind(ds.fetchStreamState, ds),
-
-			_.partial(deleteItem, 'a'),
-			_.bind(ds.fetchStreamState, ds)
-
-		], function (err) {
-			if (err) return done(err)
-				
-			setImmediate(function () {
-
-				expect(results[0]).to.have.property('eventName', 'insert record')
-				expect(results[0]).to.have.property('newRecord').to.eql({ pk: pk, data: '1' })
-				
-				expect(results[1]).to.have.property('eventName', 'modify record')
-				expect(results[1]).to.have.property('newRecord').to.eql({ pk: pk, data: '2' })
-				expect(results[1]).to.have.property('oldRecord').to.eql({ pk: pk, data: '1' })
-
-				expect(results[2]).to.have.property('eventName', 'insert record')
-				expect(results[2]).to.have.property('newRecord').to.eql({ pk: 'a', data: '2' })
-				
-				expect(results[3]).to.have.property('eventName', 'insert record')
-				expect(results[3]).to.have.property('newRecord').to.eql({ pk: 'b', data: '2' })
-				
-				expect(results[4]).to.have.property('eventName', 'remove record')
-				expect(results[4]).to.have.property('oldRecord').to.eql({ pk: 'a', data: '2' })
-				
-				done()
-			})
-		})
-	})
-
-	beforeEach(function(done) {
-		results = []
-		shards = []
-		
-		async.series([
-			createTable,
-			findStreamArn
-		], function(err, series) {
-			if (err) return done(err)
-
-			ds = new DynamoDBStream(ddbStreams, series[1])
-
-			ds.on('insert record', function (record) {
-				results.push({
-					eventName: 'insert record',
-					newRecord: record
-				})
-			})
-
-			ds.on('modify record', function (newRecord, oldRecord) {
-				results.push({
-					eventName: 'modify record',
-					newRecord: newRecord,
-					oldRecord: oldRecord
-				})
-			})
-
-			ds.on('remove record', function (record) {
-				results.push({
-					eventName: 'remove record',
-					oldRecord: record
-				})
-			})
-
-			ds.on('new shards', function (newShards) {
-				shards = shards.concat(newShards)
-			})
-
-
-			done()
-		})
-	})
-
-	afterEach(function(done) {
-		deleteTable(done)
-	})
-
-	function getEvents(batchName) {
-		return function (callback) {
-			ds.getEvents(function (err, events) {
-				if (err) return callback(err)
-				results[batchName] = events
-				callback(null, events)
-			})
-		}
-	} 
+	t.deepEqual(eventLog, [
+		{ eventName: 'insert record', record: { pk, data: '1' } },
+		{ 
+			eventName: 'modify record', 
+			newRecord: { pk, data: '2' },
+			oldRecord: { pk, data: '1' }
+		},
+		{ eventName: 'insert record', record: { pk: 'a', data: '2' } },
+		{ eventName: 'insert record', record: { pk: 'b', data: '2' } },
+		{ eventName: 'remove record', record: { pk: 'a', data: '2' } }
+	])
 })
+
+test.beforeEach(async t => {
+
+	t.context = {
+		eventLog: []
+	}
+
+	await createTable()
+	const arn = await findStreamArn()
+	const ddbStream = t.context.ddbStream = new DynamoDBStream(ddbStreams, arn)
+
+	ddbStream.on('insert record', (record) => {
+		t.context.eventLog.push({ eventName: 'insert record', record })
+	})
+
+	ddbStream.on('modify record', (newRecord, oldRecord) => {
+		t.context.eventLog.push({
+			eventName: 'modify record',
+			newRecord,
+			oldRecord
+		})
+	})
+
+	ddbStream.on('remove record', (record) => {
+		t.context.eventLog.push({ eventName: 'remove record', record })
+	})
+
+	ddbStream.on('new shards', (newShards) => {
+		t.context.shards = newShards
+	})
+})
+
 
 /**
  * create the test table and wait for it to become active
  *
  */
-function createTable(callback) {
+async function createTable() {
 	debug('creating table...')
 
-	var params = {
+	const params = {
 		TableName: TABLE_NAME,
 		KeySchema: [{
 			AttributeName: 'pk',
@@ -149,56 +94,48 @@ function createTable(callback) {
 			StreamViewType: 'NEW_AND_OLD_IMAGES'
 		}
 	}
-
-	ddb.createTable(params, function(err, data) {
-		if (err) {
-			if (!isTableExistError(err)) {
-				return callback(err)
-			}
-
-			debug('table already exists, skipping creation.')
-		} else {
-			debug('table created.')
+	try {
+		await ddb.createTable(params).promise()
+		debug('table created.')
+		await waitForTable(true)
+	} catch (e) {
+		if (!isTableExistError(e)) {
+			throw e
 		}
 
-		waitForTable(true, callback)
-	})
+		debug('table already exists, skipping creation.')
+	}
 }
 
-function findStreamArn(callback) {
+async function findStreamArn(callback) {
 	debug('finding the right stream arn')
-	ddbStreams.listStreams(function(err, data) {
-		if (err) return callback(err)
+	const { Streams } = await ddbStreams.listStreams().promise()
 
-		debug('found %d streams', data.Streams.length)
+	debug('found %d streams', Streams.length)
 
-		var stream = _.find(data.Streams, 'TableName', TABLE_NAME)
+	const stream = Streams.filter(item => item.TableName === TABLE_NAME)[0]
 
-		debug(stream)
+	debug(stream)
 
-		if (!stream) {
-			return callback(new Error('cannot find stream arn'))
-		}
+	if (!stream) {
+		throw new Error('cannot find stream arn')
+	}
 
-		debug('stream arn for table %s was found', TABLE_NAME)
-		callback(null, stream.StreamArn)
-	})
+	debug('stream arn for table %s was found', TABLE_NAME)
+	return stream.StreamArn
 }
 
 /**
  * delete the test table and wait for its disappearance
  *
  */
-function deleteTable(callback) {
-	var params = {
+async function deleteTable(callback) {
+	const params = {
 		TableName: TABLE_NAME
 	}
-
-	ddb.deleteTable(params, function(err) {
-		if (err) return callback(err)
-
-		waitForTable(false, callback)
-	})
+	debug('deleting table %s', TABLE_NAME)
+	await ddb.deleteTable(params).promise()
+	await waitForTable(false)
 }
 
 /**
@@ -206,29 +143,22 @@ function deleteTable(callback) {
  * if the table is already in that state this function should return quickly
  *
  */
-function waitForTable(exists, callback) {
+async function waitForTable(exists) {
 	debug('waiting for table %s...', exists ? 'to become available' : 'deletion')
-	
+
 	// Waits for table to become ACTIVE.  
 	// Useful for waiting for table operations like CreateTable to complete. 
-	var params = {
+	const params = {
 		TableName: TABLE_NAME
 	}
 
 	// Supports 'tableExists' and 'tableNotExists'
-	ddb.waitFor(exists ? 'tableExists' : 'tableNotExists', params, function(err) {
-		if (err) return callback(err)
-		debug('table %s.', exists ? 'available' : 'deleted')
-		callback()
-	})
-}
-
-function isTableExistError(err) {
-	return err && err.code === 'ResourceInUseException' && err.message && err.message.indexOf('Table already exists') > -1
+	await ddb.waitFor(exists ? 'tableExists' : 'tableNotExists', params).promise()
+	debug('table %s.', exists ? 'available' : 'deleted')
 }
 
 function putItem(data, callback) {
-	var params = {
+	const params = {
 		TableName: TABLE_NAME,
 		Item: {
 			pk: {
@@ -240,16 +170,22 @@ function putItem(data, callback) {
 		}
 	}
 
-	debug('putting item %s', inspect(params))
+	debug('putting item %o', params)
 
-	ddb.putItem(params, callback)
+	return ddb.putItem(params).promise()
 }
 
 function deleteItem(pk, callback) {
-	var params = {
+	const params = {
 		TableName: TABLE_NAME,
-		Key: {  pk: { S: pk } }
+		Key: { pk: { S: pk } }
 	}
 
-	ddb.deleteItem(params, callback)
+	debug('deleting item %o', params)
+
+	return ddb.deleteItem(params).promise()
+}
+
+function isTableExistError(err) {
+	return err && err.code === 'ResourceInUseException' && err.message && err.message.indexOf('Table already exists') > -1
 }

@@ -27,3 +27,6 @@ node_modules
 # see https://github.com/substack/browserify-handbook#organizing-modules
 node_modules/*
 !node_modules/app
+
+index2.js
+test2.js
