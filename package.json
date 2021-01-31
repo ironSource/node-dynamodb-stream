@@ -16,10 +16,9 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.4.1",
     "@aws-sdk/client-dynamodb-streams": "^3.4.1",
+    "@aws-sdk/util-dynamodb": "^3.4.1",
     "@kessler/async-map-limit": "^3.0.0",
-    "debug": "^2.2.0",
-    "dynamodb-value": "^1.0.0",
-    "lodash": "^4.17.20"
+    "debug": "^2.2.0"
   },
   "author": "Yaniv Kessler",
   "bugs": {
@@ -32,6 +31,9 @@
   "homepage": "https://github.com/ironSource/node-dynamodb-stream",
   "license": "MIT",
   "devDependencies": {
-    "ava": "^3.15.0"
+    "ava": "^3.15.0",
+    "@aws-sdk/client-dynamodb": "^3.4.1",
+    "@aws-sdk/client-dynamodb-streams": "^3.4.1",
+    "@aws-sdk/util-dynamodb": "^3.4.1"
   }
 }

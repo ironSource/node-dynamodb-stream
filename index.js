@@ -3,7 +3,17 @@ const map = require('@kessler/async-map-limit')
 const { EventEmitter } = require('events')
 
 class DynamoDBStream extends EventEmitter {
-	constructor(ddbStreams, streamArn) {
+
+	/**
+	 *	@param {object} ddbStreams - an instance of DynamoDBStreams
+	 *	@param {string} streamArn - the arn of the stream we're consuming
+	 *	@param {function} unmarshall - directly from 
+	 *			```js
+	 *				const { unmarshall } = require('@aws-sdk/util-dynamodb')
+	 *			```
+	 *			 if not provided then records will be returned using low level api/shape
+	 */
+	constructor(ddbStreams, streamArn, unmarshall) {
 		super()
 		if (!typeof ddbStreams === 'object') {
 			throw new Error('missing or invalid ddbStreams argument')
@@ -16,6 +26,7 @@ class DynamoDBStream extends EventEmitter {
 		this._ddbStreams = ddbStreams
 		this._streamArn = streamArn
 		this._shards = new Map()
+		this._unmarshall = unmarshall
 	}
 
 	/**
@@ -161,12 +172,22 @@ class DynamoDBStream extends EventEmitter {
 		}
 	}
 
+	/**
+	 *	you may override in subclasses to change record transformation behavior
+	 * 	for records emitted during _emitRecordEvents()
+	 */
+	_transformRecord(record) {
+		if (this._unmarshall && record) {
+			return this._unmarshall(record)
+		}
+	}
+
 	_emitRecordEvents(events) {
 		debug('_emitRecordEvents')
 
 		for (const event of events) {
-			const newRecord = event.dynamodb.NewImage //? DynamoDBValue.toJavascript(event.dynamodb.NewImage) : null
-			const oldRecord = event.dynamodb.OldImage //? DynamoDBValue.toJavascript(event.dynamodb.OldImage) : null
+			const newRecord = this._transformRecord(event.dynamodb.NewImage)
+			const oldRecord = this._transformRecord(event.dynamodb.OldImage)
 
 			switch (event.eventName) {
 				case 'INSERT':

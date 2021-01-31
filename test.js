@@ -1,9 +1,10 @@
 const test = require('ava')
 const DynamoDBStream = require('./index')
-const { DynamoDB, ResourceInUseException } = require('@aws-sdk/client-dynamodb')
+const { DynamoDB, DocumentClient } = require('@aws-sdk/client-dynamodb')
 const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
-const debug = require('debug')('DynamoDBStream:test')
+const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb')
 
+const debug = require('debug')('DynamoDBStream:test')
 const ddbStreams = new DynamoDBStreams()
 const ddb = new DynamoDB()
 
@@ -45,7 +46,7 @@ test.beforeEach(async t => {
 
 	await createTable()
 	const arn = await findStreamArn()
-	const ddbStream = t.context.ddbStream = new DynamoDBStream(ddbStreams, arn)
+	const ddbStream = t.context.ddbStream = new DynamoDBStream(ddbStreams, arn, unmarshall)
 
 	ddbStream.on('insert record', (record) => {
 		t.context.eventLog.push({ eventName: 'insert record', record })
@@ -67,7 +68,6 @@ test.beforeEach(async t => {
 		t.context.shards = newShards
 	})
 })
-
 
 /**
  * create the test table and wait for it to become active
@@ -110,7 +110,7 @@ async function createTable() {
 
 async function findStreamArn(callback) {
 	debug('finding the right stream arn')
-	const { Streams } = await ddbStreams.listStreams({})
+	const { Streams } = await ddbStreams.listStreams({ TableName: TABLE_NAME })
 
 	debug('found %d streams', Streams.length)
 
