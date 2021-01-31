@@ -2,6 +2,8 @@
 
 A wrapper around low level aws sdk that makes it easy to consume a dynamodb-stream, even in a browser.
 
+_update: serious overhaul completed a418f5b4fc8e3948f279c6a2e57974051025c13c, major version is bumped to 1.x.x_
+
 ### Example: Replicating small tables
 
 fetchStreamState() should be invoked whenever the consumer wishes to get the updates.
