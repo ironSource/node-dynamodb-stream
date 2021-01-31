@@ -1,8 +1,8 @@
 const test = require('ava')
 const DynamoDBStream = require('./index')
-const { DynamoDB, DocumentClient } = require('@aws-sdk/client-dynamodb')
+const { DynamoDB } = require('@aws-sdk/client-dynamodb')
 const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
-const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb')
+const { unmarshall } = require('@aws-sdk/util-dynamodb')
 
 const debug = require('debug')('DynamoDBStream:test')
 const ddbStreams = new DynamoDBStreams()

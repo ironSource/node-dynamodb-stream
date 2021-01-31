@@ -1,6 +1,6 @@
 # DynamoDBStream
 
-A wrapper around low level aws sdk that makes it easy to consume a dynamodb-stream.
+A wrapper around low level aws sdk that makes it easy to consume a dynamodb-stream, even in a browser.
 
 ### Example: Replicating small tables
 
@@ -14,97 +14,115 @@ This different approach make things more "stateless" and slightly simpler (in my
 
 - call fetchStreamState() first, one may safely disregard any events that are emitted at this stage. Under the hood DynamoDBStream uses ```ShardIteratorType: LATEST``` to get shard iterators for all the current shards of the stream. These iterators act as a "bookmark" in the stream.
 - Obtain an initial copy of the table's data (via a dynamodb scan api call for example) and store it locally
-- call fetchStreamState() again, at this point some of the events might already be included in the initial local copy of the data and some won't. Depending on the data structure thats houses the local copy of data, flitering might need to be applied.
+- call fetchStreamState() again, at this point some of the events might already be included in the initial local copy of the data and some won't. Depending on the data structure thats houses the local copy of data, some filtering might be needed.
 - start polling on fetchStreamState() and blindly mutate the local copy according to the updates
 
 Wrapping the initial data scan with fetchStreamState() calls insures that no changes will be missed. At worst, the second call might yield some duplicates.
 
-```javascript
+```js
+const DynamoDBStream = require('dynamodb-stream')
+const { DynamoDB } = require('@aws-sdk/client-dynamodb')
+const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
+const { unmarshall } = require('@aws-sdk/util-dynamodb')
 
-var aws = require('aws-sdk')
-var DynamoDBStream = require('dynamodb-stream')
-var schedule = require('tempus-fugit').schedule
-var deepDiff = require('deep-diff').diff
+const STREAM_ARN = 'your stream ARN'
+const TABLE_NAME = 'testDynamoDBStream'
 
-var pk = 'id'
-var ddb = new aws.DynamoDB()
-var ddbStream = new DynamoDBStream(new aws.DynamoDBStreams(), 'my stream arn')
+async function main() {
 
-var localState = {}
+  // table primary key is "pk"
 
-// fetch stream state initially
-ddbStream.fetchStreamState(function (err) {
-    if (err) {
-        console.error(err)
-        return process.exit(1)
-    }
-    
-    // fetch all the data
-    ddb.scan({ TableName: 'foo' }, function (err, results) {
-        localState = // parse result and store in localSate
-        
-        // do this every 1 minute, starting from the next round minute
-        schedule({ minute: 1 }, function (job) {
-            ddbStream.fetchStreamState(job.callback())
-        })
-    })    
-})
+  const ddb = new DynamoDB()
+  const ddbStream = new DynamoDBStream(
+    new DynamoDBStreams(),
+    STREAM_ARN,
+    unmarshall
+  )
 
-ddbStream.on('insert record', function (data) {
-    localState[data.id] = data
-})
+  const localState = new Map()
+  await ddbStream.fetchStreamState()
+  const { Items } = await ddb.scan({ TableName: TABLE_NAME })
+  Items.map(unmarshall).forEach(item => localState.set(item.pk, item))
+  
+  // parse results and store in local state
+  const watchStream = () => {
+    console.log(localState)
+    setTimeout(() => ddbStream.fetchStreamState().then(watchStream), 10 * 1000)
+  }
 
-ddbStream.on('remove record', function (data) {
-    delete localState[data.id]
-})
+  watchStream()
 
-ddbStream.on('modify record', function (newData, oldData) {
-    var diff = deepDiff(oldData, newData)
-    if (diff) {
-        // handle the diffs
-    }
-})
+  ddbStream.on('insert record', (data, keys) => {
+    localState.set(data.pk, data)
+  })
 
-ddbStream.on('new shards', function (shardIds) {})
-ddbStream.on('remove shards', function (shardIds) {})
+  ddbStream.on('remove record', (data, keys) => {
+    localState.remove(data.pk)
+  })
 
+  ddbStream.on('modify record', (newData, oldData, keys) => {
+    localState.set(newData.pk, newData)
+  })
+
+  ddbStream.on('new shards', (shardIds) => {})
+  ddbStream.on('remove shards', (shardIds) => {})
+}
+
+main()
 ```
 
-### Example: shards / iterator persistence on dynamodb
+### Example: shards / iterator persistence
 
-The fetchStreamState() can accept a callback function, that will be invoked prior to event emission. Among other things, this callback is designed to be used as a hook point for persisting the iterator's state
+If your program crash and you want to pick up where you left off then `setShardsState()` and `getShardState()` are here for the rescue (though, I haven't tested them yet but they should work... :) )
 
-```javascript
-var schedule = require('tempus-fugit').schedule
-var aws = require('aws-sdk')
-var DynamoDBStream = require('dynamodb-stream')
-var ddb = new aws.DynamoDB()
-var ddbStream = new DynamoDBStream(new aws.DynamoDBStreams(), 'my stream arn')
+```js
+const DynamoDBStream = require('dynamodb-stream')
+const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
+const { unmarshall } = require('@aws-sdk/util-dynamodb')
+const fs = require('fs').promises
 
-ddbStream.fetchStreamState(function (err) {
-    if (err) {
-        return console.error(err)
-    }
+const STREAM_ARN = 'your stream ARN'
+const FILE = 'shardState.json'
 
-    var state = ddbStream.getShardState()
+async function main() {
+  const ddbStream = new DynamoDBStream(
+    new DynamoDBStreams(),
+    STREAM_ARN,
+    unmarshall
+  )
 
-    // save state here
-})
+  // update the state so it will pick up from where it left last time
+  // remember this has a limit of 24 hours or something along these lines
+  // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html
+  ddbStream.setShardState(await loadShardState())
 
+  const fetchStreamState = () => {
+    setTimeout(async () => {
+      await ddbStream.fetchStreamState()
+      const shardState = ddbStream.getShardState()
+      await fs.writeFile(FILE, JSON.stringify(shardState))
+      fetchStreamState()
+    }, 1000 * 20)
+  }
+
+  fetchStreamState()
+}
+
+async function loadShardState() {
+  try {
+    return JSON.parse(await fs.readFile(FILE, 'utf8'))
+  } catch (e) {
+    if (e.code === 'ENOENT') return {}
+    throw e
+  }
+}
+
+main()
 ```
 
 #### TODO
  - make sure the aggregation of records is in order - the metadata from the stream might be helpful (order by sequence number?)
- - maybe only update the stream state after the callback of fetchStreamState():
  
- ```javascript
- // internally dont replace iterators before process is complete without errors
- ddbStream.fetchStreamState(function (err, callback) {
-    // dont' replace iterators before callback is invoked?
-    // what happens if fetchStreamState is call again when we're persisting the older state?
- })
- ```
-
 #### Wishlist to DynamoDB team:
 1. expose push interface so one won't need to poll the stream api
 2. obtain a sequence number from a dynamodb api scan operation

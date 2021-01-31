@@ -96,8 +96,34 @@ class DynamoDBStream extends EventEmitter {
 
 		this._trimShards()
 		this._emitRecordEvents(records)
-			
+
 		return records
+	}
+
+	/**
+	 * 	get a COPY of the current/internal shard state.
+	 * 	this, in conjuction with setShardState is used to
+	 * 	persist the stream state locally.
+	 *
+	 *	@returns {object}
+	 */
+	getShardState() {
+		const state = {}
+		for (const [shardId, shardData] of this._shards) {
+			state[shardId] = { ...shardData }
+		}
+		return state
+	}
+
+	/**
+	 *	@param {object} shards
+	 */
+	setShardState(shards) {
+
+		this._shards = new Map()
+		for (const [shardId, shardData] of Object.entries(shards)) {
+			this._shards.set(shardId, shardData)
+		}
 	}
 
 	_getShardIterators() {
@@ -129,13 +155,15 @@ class DynamoDBStream extends EventEmitter {
 		debug('_getRecords')
 
 		const results = await map(this._shards.values(), shardData => this._getShardRecords(shardData), 10)
-		
+
 		return results.flat()
 	}
 
 	async _getShardRecords(shardData) {
 		debug('_getShardRecords')
+
 		const params = { ShardIterator: shardData.nextShardIterator }
+
 		try {
 			const { Records, NextShardIterator } = await this._ddbStreams.getRecords(params)
 			if (NextShardIterator) {
@@ -186,24 +214,26 @@ class DynamoDBStream extends EventEmitter {
 		debug('_emitRecordEvents')
 
 		for (const event of events) {
+			const keys = this._transformRecord(event.dynamodb.Keys)
+			console.log(keys)
 			const newRecord = this._transformRecord(event.dynamodb.NewImage)
 			const oldRecord = this._transformRecord(event.dynamodb.OldImage)
 
 			switch (event.eventName) {
 				case 'INSERT':
-					this.emit('insert record', newRecord)
+					this.emit('insert record', newRecord, keys)
 					break
 
 				case 'MODIFY':
-					this.emit('modify record', newRecord, oldRecord)
+					this.emit('modify record', newRecord, oldRecord, keys)
 					break
 
 				case 'REMOVE':
-					this.emit('remove record', oldRecord)
+					this.emit('remove record', oldRecord, keys)
 					break
 
 				default:
-					 throw new Error(`unknown dynamodb event ${event.eventName}`)
+					throw new Error(`unknown dynamodb event ${event.eventName}`)
 			}
 		}
 	}
@@ -212,7 +242,7 @@ class DynamoDBStream extends EventEmitter {
 		this.emit('remove shards', shardIds)
 	}
 
-	
+
 	_emitNewShardsEvent(shardIds) {
 		this.emit('new shards', shardIds)
 	}

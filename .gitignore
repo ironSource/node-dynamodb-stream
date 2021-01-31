@@ -30,3 +30,4 @@ node_modules/*
 
 index2.js
 test2.js
+shardState.json
