@@ -2,7 +2,7 @@
 
 A wrapper around low level aws sdk that makes it easy to consume a dynamodb-stream, even in a browser.
 
-_update: serious overhaul completed a418f5b4fc8e3948f279c6a2e57974051025c13c, major version is bumped to 1.x.x_
+_update: serious overhaul with this [commit](https://github.com/ironSource/node-dynamodb-stream/commit/a418f5b4fc8e3948f279c6a2e57974051025c13c) and a few smaller ones after. Major version is bumped to 1.x.x_
 
 ### Example: Replicating small tables
 
