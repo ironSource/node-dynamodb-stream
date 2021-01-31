@@ -2,12 +2,9 @@ var expect = require('chai').expect
 var DynamoDBStream = require('./index.js')
 var inspect = require('util').inspect
 var aws = require('aws-sdk')
-var config = require('rc')('dynamodb-stream')
 var async = require('async')
 var _ = require('lodash')
 var debug = require('debug')('DynamoDBStream:test')
-
-aws.config.update(config)
 
 var ddbStreams = new aws.DynamoDBStreams()
 var ddb = new aws.DynamoDB()
