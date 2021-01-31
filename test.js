@@ -1,10 +1,11 @@
 const test = require('ava')
 const DynamoDBStream = require('./index')
-const aws = require('aws-sdk')
+const { DynamoDB, ResourceInUseException } = require('@aws-sdk/client-dynamodb')
+const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
 const debug = require('debug')('DynamoDBStream:test')
 
-const ddbStreams = new aws.DynamoDBStreams()
-const ddb = new aws.DynamoDB()
+const ddbStreams = new DynamoDBStreams()
+const ddb = new DynamoDB()
 
 const TABLE_NAME = 'testDynamoDBStream'
 
@@ -95,7 +96,7 @@ async function createTable() {
 		}
 	}
 	try {
-		await ddb.createTable(params).promise()
+		await ddb.createTable(params)
 		debug('table created.')
 		await waitForTable(true)
 	} catch (e) {
@@ -109,7 +110,7 @@ async function createTable() {
 
 async function findStreamArn(callback) {
 	debug('finding the right stream arn')
-	const { Streams } = await ddbStreams.listStreams().promise()
+	const { Streams } = await ddbStreams.listStreams({})
 
 	debug('found %d streams', Streams.length)
 
@@ -134,7 +135,7 @@ async function deleteTable(callback) {
 		TableName: TABLE_NAME
 	}
 	debug('deleting table %s', TABLE_NAME)
-	await ddb.deleteTable(params).promise()
+	await ddb.deleteTable(params)
 	await waitForTable(false)
 }
 
@@ -153,7 +154,7 @@ async function waitForTable(exists) {
 	}
 
 	// Supports 'tableExists' and 'tableNotExists'
-	await ddb.waitFor(exists ? 'tableExists' : 'tableNotExists', params).promise()
+	await ddb.waitFor(exists ? 'tableExists' : 'tableNotExists', params)
 	debug('table %s.', exists ? 'available' : 'deleted')
 }
 
@@ -172,7 +173,7 @@ function putItem(data, callback) {
 
 	debug('putting item %o', params)
 
-	return ddb.putItem(params).promise()
+	return ddb.putItem(params)
 }
 
 function deleteItem(pk, callback) {
@@ -183,9 +184,9 @@ function deleteItem(pk, callback) {
 
 	debug('deleting item %o', params)
 
-	return ddb.deleteItem(params).promise()
+	return ddb.deleteItem(params)
 }
 
 function isTableExistError(err) {
-	return err && err.code === 'ResourceInUseException' && err.message && err.message.indexOf('Table already exists') > -1
+	return err && err.message && err.message.indexOf('Table already exists') > -1
 }

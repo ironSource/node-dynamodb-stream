@@ -42,7 +42,7 @@ class DynamoDBStream extends EventEmitter {
 			StreamArn: this._streamArn
 		}
 
-		const { StreamDescription } = await this._ddbStreams.describeStream(params).promise()
+		const { StreamDescription } = await this._ddbStreams.describeStream(params)
 
 		const shards = StreamDescription.Shards
 		const newShardIds = []
@@ -110,7 +110,7 @@ class DynamoDBStream extends EventEmitter {
 			StreamArn: this._streamArn
 		}
 
-		const { ShardIterator } = await this._ddbStreams.getShardIterator(params).promise()
+		const { ShardIterator } = await this._ddbStreams.getShardIterator(params)
 		shardData.nextShardIterator = ShardIterator
 	}
 
@@ -126,7 +126,7 @@ class DynamoDBStream extends EventEmitter {
 		debug('_getShardRecords')
 		const params = { ShardIterator: shardData.nextShardIterator }
 		try {
-			const { Records, NextShardIterator } = await this._ddbStreams.getRecords(params).promise()
+			const { Records, NextShardIterator } = await this._ddbStreams.getRecords(params)
 			if (NextShardIterator) {
 				shardData.nextShardIterator = NextShardIterator
 			} else {

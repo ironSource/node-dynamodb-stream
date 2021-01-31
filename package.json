@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha -R spec"
+    "test": "env AWS_REGION=us-east-1 AWS_PROFILE=test DEBUG=DynamoDBStream* npx ava test.js"
   },
   "keywords": [
     "stream",
@@ -14,8 +14,9 @@
     "replication"
   ],
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.4.1",
+    "@aws-sdk/client-dynamodb-streams": "^3.4.1",
     "@kessler/async-map-limit": "^3.0.0",
-    "aws-sdk": "^2.834.0",
     "debug": "^2.2.0",
     "dynamodb-value": "^1.0.0",
     "lodash": "^4.17.20"
