@@ -13,6 +13,11 @@ lib-cov
 # Coverage directory used by tools like istanbul
 coverage
 
+# Dependency directory
+# Commenting this out is preferred by some people, see
+# https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git-
+node_modules
+
 # Mac stuff
 .DS_Store
 
@@ -22,3 +27,9 @@ coverage
 # see https://github.com/substack/browserify-handbook#organizing-modules
 node_modules/*
 !node_modules/app
+
+index2.js
+test2.js
+shardState.json
+oldShardState.json
+playground
