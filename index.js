@@ -174,7 +174,8 @@ class DynamoDBStream extends EventEmitter {
 
 			return Records
 		} catch (e) {
-			if (e.code === 'ExpiredIteratorException') {
+			if (e.name === 'ExpiredIteratorException') {
+				debug('_getShardRecords expired iterator', shardData)
 				shardData.nextShardIterator = null
 			} else {
 				throw e
@@ -190,7 +191,7 @@ class DynamoDBStream extends EventEmitter {
 		for (const [shardId, shardData] of this._shards) {
 			if (shardData.nextShardIterator === null) {
 				debug('deleting shard %s', shardId)
-				this._shards.remove(shardId)
+				this._shards.delete(shardId)
 				removedShards.push(shardId)
 			}
 		}
