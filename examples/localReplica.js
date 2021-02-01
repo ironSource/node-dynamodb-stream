@@ -23,9 +23,9 @@ async function main() {
 	Items.map(unmarshall).forEach(item => localState.set(item.pk, item))
 	
 	// parse results and store in local state
-	const watchStream = () => {
-		console.log(localState)
-		setTimeout(() => ddbStream.fetchStreamState().then(watchStream), 10 * 1000)
+	const watchStream = async () => {
+		await ddbStream.fetchStreamState()
+		setTimeout(watchStream, 10 * 1000)		
 	}
 
 	watchStream()
