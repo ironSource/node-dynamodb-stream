@@ -3,7 +3,7 @@ const DynamoDBStream = require('./index')
 const { DynamoDB } = require('@aws-sdk/client-dynamodb')
 const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
 const { unmarshall } = require('@aws-sdk/util-dynamodb')
-
+const { ulid } = require('ulid')
 const debug = require('debug')('DynamoDBStream:test')
 const ddbStreams = new DynamoDBStreams()
 const ddb = new DynamoDB()
@@ -12,17 +12,19 @@ const TABLE_NAME = 'testDynamoDBStream'
 
 test('reports the correct stream of changes', async t => {
 	const { eventLog, ddbStream } = t.context
-	const pk = Date.now().toString()
+	const pk = ulid()
+	const pkA = ulid()
+	const pkB = ulid()
 
 	await ddbStream.fetchStreamState()
 	await putItem({ pk, data: '1' })
 	await ddbStream.fetchStreamState()
 	await putItem({ pk, data: '2' })
 	await ddbStream.fetchStreamState()
-	await putItem({ pk: 'a', data: '2' })
-	await putItem({ pk: 'b', data: '2' })
+	await putItem({ pk: pkA, data: '2' })
+	await putItem({ pk: pkB, data: '2' })
 	await ddbStream.fetchStreamState()
-	await deleteItem('a')
+	await deleteItem(pkA)
 	await ddbStream.fetchStreamState()
 
 	t.deepEqual(eventLog, [
@@ -32,9 +34,9 @@ test('reports the correct stream of changes', async t => {
 			newRecord: { pk, data: '2' },
 			oldRecord: { pk, data: '1' }
 		},
-		{ eventName: 'insert record', record: { pk: 'a', data: '2' } },
-		{ eventName: 'insert record', record: { pk: 'b', data: '2' } },
-		{ eventName: 'remove record', record: { pk: 'a', data: '2' } }
+		{ eventName: 'insert record', record: { pk: pkA, data: '2' } },
+		{ eventName: 'insert record', record: { pk: pkB, data: '2' } },
+		{ eventName: 'remove record', record: { pk: pkA, data: '2' } }
 	])
 })
 
@@ -108,7 +110,7 @@ async function createTable() {
 	}
 }
 
-async function findStreamArn(callback) {
+async function findStreamArn() {
 	debug('finding the right stream arn')
 	const { Streams } = await ddbStreams.listStreams({ TableName: TABLE_NAME })
 
@@ -130,7 +132,7 @@ async function findStreamArn(callback) {
  * delete the test table and wait for its disappearance
  *
  */
-async function deleteTable(callback) {
+async function deleteTable() {
 	const params = {
 		TableName: TABLE_NAME
 	}
@@ -158,7 +160,7 @@ async function waitForTable(exists) {
 	debug('table %s.', exists ? 'available' : 'deleted')
 }
 
-function putItem(data, callback) {
+function putItem(data) {
 	const params = {
 		TableName: TABLE_NAME,
 		Item: {
@@ -176,7 +178,7 @@ function putItem(data, callback) {
 	return ddb.putItem(params)
 }
 
-function deleteItem(pk, callback) {
+function deleteItem(pk) {
 	const params = {
 		TableName: TABLE_NAME,
 		Key: { pk: { S: pk } }
@@ -188,5 +190,5 @@ function deleteItem(pk, callback) {
 }
 
 function isTableExistError(err) {
-	return err && err.message && err.message.indexOf('Table already exists') > -1
+	return err && err.name === 'ResourceInUseException' && err.message && err.message.indexOf('Table already exists') > -1
 }
