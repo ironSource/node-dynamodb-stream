@@ -124,6 +124,7 @@ main()
 
 #### TODO
  - make sure the aggregation of records is in order - the metadata from the stream might be helpful (order by sequence number?)
+ - what about sequence numbers and other types of iterators? (TRIM_HORIZON | LATEST | AT_SEQUENCE_NUMBER | AFTER_SEQUENCE_NUMBE)
  
 #### Wishlist to DynamoDB team:
 1. expose push interface so one won't need to poll the stream api
