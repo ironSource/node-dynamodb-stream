@@ -1,4 +1,4 @@
-const DynamoDBStream = require('../index')
+const DynamoDBStream = require('dynamodb-stream')
 const { DynamoDB } = require('@aws-sdk/client-dynamodb')
 const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
 const { unmarshall } = require('@aws-sdk/util-dynamodb')
