@@ -40,6 +40,14 @@ test('reports the correct stream of changes', async t => {
 	])
 })
 
+// this test will only work if you have a proper shardState set a side
+test.skip('ExpiredIteratorException', async t => {
+	const shardState = require('./oldShardState.json')
+	const { ddbStream } = t.context
+	ddbStream.setShardState(shardState)
+	await t.notThrowsAsync(ddbStream.fetchStreamState())
+})
+
 test.beforeEach(async t => {
 
 	t.context = {
