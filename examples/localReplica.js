@@ -4,7 +4,7 @@ const { DynamoDBStreams } = require('@aws-sdk/client-dynamodb-streams')
 const { unmarshall } = require('@aws-sdk/util-dynamodb')
 
 const STREAM_ARN = 'your stream ARN'
-const TABLE_NAME = 'testDynamoDBStream'
+const TABLE_NAME = 'your table name'
 
 async function main() {
 
