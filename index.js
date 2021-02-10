@@ -216,7 +216,6 @@ class DynamoDBStream extends EventEmitter {
 
 		for (const event of events) {
 			const keys = this._transformRecord(event.dynamodb.Keys)
-			console.log(keys)
 			const newRecord = this._transformRecord(event.dynamodb.NewImage)
 			const oldRecord = this._transformRecord(event.dynamodb.OldImage)
 
