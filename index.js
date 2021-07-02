@@ -53,23 +53,32 @@ class DynamoDBStream extends EventEmitter {
 			StreamArn: this._streamArn
 		}
 
-		const { StreamDescription } = await this._ddbStreams.describeStream(params)
-
-		const shards = StreamDescription.Shards
 		const newShardIds = []
+		let lastShardId = null
 
-		// collect all the new shards of this stream
-		for (const newShardEntry of shards) {
-			const existingShardEntry = this._shards.get(newShardEntry.ShardId)
-
-			if (!existingShardEntry) {
-				this._shards.set(newShardEntry.ShardId, {
-					shardId: newShardEntry.ShardId
-				})
-
-				newShardIds.push(newShardEntry.ShardId)
+		do {
+			if (lastShardId) {
+				debug('lastShardId: %s', lastShardId)
+				params.ExclusiveStartShardId = lastShardId
 			}
-		}
+			const { StreamDescription } = await this._ddbStreams.describeStream(params)
+
+			const shards = StreamDescription.Shards
+			lastShardId = StreamDescription.LastEvaluatedShardId
+
+			// collect all the new shards of this stream
+			for (const newShardEntry of shards) {
+				const existingShardEntry = this._shards.get(newShardEntry.ShardId)
+
+				if (!existingShardEntry) {
+					this._shards.set(newShardEntry.ShardId, {
+						shardId: newShardEntry.ShardId
+					})
+
+					newShardIds.push(newShardEntry.ShardId)
+				}
+			}
+		} while (lastShardId)
 
 		if (newShardIds.length > 0) {
 			debug('Added %d new shards', newShardIds.length)
